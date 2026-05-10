@@ -1,3 +1,25 @@
+# Apne project folder mein copy karo
+cp README.md /path/to/ADMISSION_CRUD/README.md
+
+# Phir GitHub pe push karo
+git add README.md
+git commit -m "Add complete Docker flow README"
+git push
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+
 # Student Admission CRUD — Docker Practice Project
 
 ## Tech Stack (Original vs This Project)
