@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+
+  # ── MySQL Database ──────────────────────────────────────────
+  database:
+    image: mysql:8.0
+    container_name: admission_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: redhat
+      MYSQL_DATABASE: admission_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uredhat", "-predhat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Python Flask Backend ────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: admission_backend
+    restart: always
+    environment:
+      DATABASE_URL: mysql+pymysql://root:redhat@database:3306/admission_db
+    ports:
+      - "5000:5000"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  # ── Nginx Frontend ──────────────────────────────────────────
+  frontend:
+    build: ./frontend
+    container_name: admission_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

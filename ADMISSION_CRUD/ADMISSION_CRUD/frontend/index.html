@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Student Admission Form</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      padding: 30px 15px;
+      color: #fff;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 6px;
+      font-size: 2rem;
+    }
+    h1 span { color: #ff8000; }
+    .subtitle { text-align: center; color: #aaa; margin-bottom: 30px; font-size: 0.9rem; }
+
+    .form-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 700px;
+      margin: 0 auto 40px auto;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-grid input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .form-grid input::placeholder { color: #bbb; }
+    .form-grid input:focus { border-color: #ff8000; }
+
+    .btn-register {
+      grid-column: 1 / -1;
+      padding: 14px;
+      background: #ff8000;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-register:hover { background: #e07000; }
+
+    /* Table */
+    .table-card {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .table-card h2 { margin-bottom: 16px; font-size: 1.3rem; color: #ff8000; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead tr { background: rgba(255,128,0,0.2); }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    th { font-weight: 600; color: #ff8000; }
+    tbody tr:hover { background: rgba(255,255,255,0.05); }
+
+    .btn-delete {
+      padding: 5px 12px;
+      background: #e53935;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .btn-delete:hover { background: #b71c1c; }
+
+    .no-data { text-align: center; color: #888; padding: 20px; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: #ff8000; color: #fff; padding: 12px 24px; border-radius: 8px;
+      font-weight: 600; display: none; z-index: 999;
+    }
+  </style>
+</head>
+<body>
+
+  <h1><span>ADMISSION</span> PORTAL</h1>
+  <p class="subtitle">Student Admission Registration System</p>
+
+  <div class="form-card">
+    <div class="form-grid">
+      <input type="text"   id="name"       placeholder="Full Name"         maxlength="50" />
+      <input type="email"  id="email"      placeholder="Email Address"     maxlength="100" />
+      <input type="text"   id="course"     placeholder="Course Applied"    maxlength="50" />
+      <input type="text"   id="education"  placeholder="Highest Education" maxlength="50" />
+      <input type="number" id="percentage" placeholder="Percentage (%)"    min="0" max="100" />
+      <input type="text"   id="branch"     placeholder="Branch / Stream"   maxlength="50" />
+      <input type="tel"    id="mobile"     placeholder="Mobile Number"     maxlength="10" />
+      <button class="btn-register" onclick="registerStudent()">&#10003; Submit Admission</button>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <h2>&#128203; Registered Students</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Email</th><th>Course</th>
+          <th>Education</th><th>%</th><th>Branch</th><th>Mobile</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="studentTableBody">
+        <tr><td colspan="9" class="no-data">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    // ---- Config ----
+    // Backend URL: in Docker, this will be replaced via nginx proxy
+    const API_BASE = window.API_BASE || 'http://localhost:5000/api';
+
+    function showToast(msg, color = '#ff8000') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = color;
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    async function loadStudents() {
+      try {
+        const res = await fetch(`${API_BASE}/students`);
+        const students = await res.json();
+        renderTable(students);
+      } catch (e) {
+        document.getElementById('studentTableBody').innerHTML =
+          '<tr><td colspan="9" class="no-data">Could not connect to backend</td></tr>';
+      }
+    }
+
+    function renderTable(students) {
+      const tbody = document.getElementById('studentTableBody');
+      if (!students.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No students registered yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = students.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${s.name}</td>
+          <td>${s.email}</td>
+          <td>${s.course}</td>
+          <td>${s.education}</td>
+          <td>${s.percentage}%</td>
+          <td>${s.branch}</td>
+          <td>${s.mobile}</td>
+          <td><button class="btn-delete" onclick="deleteStudent(${s.id})">Delete</button></td>
+        </tr>
+      `).join('');
+    }
+
+    async function registerStudent() {
+      const fields = ['name','email','course','education','percentage','branch','mobile'];
+      const data = {};
+      for (const f of fields) {
+        const val = document.getElementById(f).value.trim();
+        if (!val) { showToast(`Please fill: ${f}`, '#e53935'); return; }
+        data[f] = f === 'percentage' ? parseFloat(val) : val;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          showToast('Student registered successfully!');
+          fields.forEach(f => document.getElementById(f).value = '');
+          loadStudents();
+        } else {
+          const err = await res.json();
+          showToast(err.error || 'Registration failed', '#e53935');
+        }
+      } catch (e) {
+        showToast('Backend not reachable', '#e53935');
+      }
+    }
+
+    async function deleteStudent(id) {
+      if (!confirm('Delete this student record?')) return;
+      try {
+        const res = await fetch(`${API_BASE}/students/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('Student deleted', '#444');
+          loadStudents();
+        }
+      } catch (e) {
+        showToast('Delete failed', '#e53935');
+      }
+    }
+
+    // Load on page open
+    loadStudents();
+  </script>
+</body>
+</html>
